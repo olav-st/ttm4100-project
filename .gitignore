@@ -52,3 +52,6 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Øysteins custom windows herk
+*.bat
