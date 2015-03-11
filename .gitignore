@@ -55,3 +55,4 @@ target/
 
 # Øysteins custom windows herk
 *.bat
+*.DS_Store
