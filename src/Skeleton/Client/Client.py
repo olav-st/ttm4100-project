@@ -2,6 +2,7 @@
 import socket
 from MessageReceiver import MessageReceiver
 import json
+import sys
 
 class Client:
 	"""
@@ -26,33 +27,41 @@ class Client:
 		self.thread.start()
 		
 		while True:
-			text = input()
-			if(text.split()[0] == 'login'):
-				payload=json.dumps({'request': 'login', 'content': text.split()[1]})
-				self.send_payload(payload)
-			elif(text.split()[0] == 'logout'):
-				self.disconnect()
-			elif(text.split()[0] == 'names'):
-				payload=json.dumps({'request': 'names'})
-				self.send_payload(payload)
-			elif(text.split()[0] == 'help'):
-				payload=json.dumps({'request': 'help'})
-				self.send_payload(payload)
+			text = input().split(' ', 1)
+			if(len(text) > 0 and len(text) < 3):
+				if(text[0] == 'login'):
+					payload=json.dumps({'request': 'login', 'content': text[1]})
+					self.send_payload(payload)
+				elif(text[0] == 'logout'):
+					self.disconnect()
+				elif(text[0] == 'names'):
+					payload=json.dumps({'request': 'names'})
+					self.send_payload(payload)
+				elif(text[0] == 'help'):
+					payload=json.dumps({'request': 'help'})
+					self.send_payload(payload)
+				elif(text[0] == 'msg'):
+					payload=json.dumps({'request': 'msg', 'content': text[1]})
+					self.send_payload(payload)
+				else:
+					print('Unknown command')
+					payload=json.dumps({'request': 'help'})
+					self.send_payload(payload)
 			else:
-				payload=json.dumps({'request': 'msg', 'content': text})
+				print('Unknown command')
+				payload=json.dumps({'request': 'help'})
 				self.send_payload(payload)
 
 
 
 
 	def disconnect(self):
-		# TODO: Handle disconnection
 		payload=json.dumps({'request': 'logout'})
 		self.send_payload(payload)
+		sys.exit()
 
 	def receive_message(self, message):
-		# TODO: Handle incoming message
-		recv=json.loads(message)
+		recv = message
 		if(recv['response'] == 'info'):
 			print('[Info]', recv['content'])
 		elif(recv['response'] == 'error'):
@@ -60,8 +69,8 @@ class Client:
 		elif(recv['response'] == 'msg'):
 			print(recv['sender']+':', recv['content'])
 		elif(recv['response'] == 'history'):
-			#todo
-			pass
+			for message in recv['content']:
+				self.receive_message(message)
 		else:
 			print('Unknown server message:', recv)
 		pass
@@ -77,4 +86,5 @@ if __name__ == '__main__':
 
 	No alterations is necessary
 	"""
+	print('Type "login <username>" to log in')
 	client = Client('localhost', 9998)

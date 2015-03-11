@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from threading import Thread
+import json
 
 class MessageReceiver(Thread):
 	"""
@@ -23,10 +24,9 @@ class MessageReceiver(Thread):
 		# TODO: Finish initialization of MessageReceiver
 
 	def run(self):
-		# TODO: Make MessageReceiver receive and handle payloads
 		while not self.stop:
 			msg = self.connection.recv(4096).decode('utf-8')
 			if not msg:
 				break
 			else:
-				self.client.receive_message(msg)
+				self.client.receive_message(json.loads(msg))

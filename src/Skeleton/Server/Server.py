@@ -22,7 +22,12 @@ class ClientHandler(SocketServer.BaseRequestHandler):
 		
 		# Loop that listens for messages from the client
 		while True:
-			recv = json.loads(self.connection.recv(4096).decode('utf-8'))
+			try:
+				recv = json.loads(self.connection.recv(4096).decode('utf-8'))
+			except Exception as e:
+				self.logout()
+				break
+			
 			if(recv['request'] == 'login'):
 				self.login(recv)
 			elif(recv['request'] == 'logout'):
@@ -30,6 +35,7 @@ class ClientHandler(SocketServer.BaseRequestHandler):
 					self.error('Not logged in')
 				else:
 					self.logout()
+					break
 			elif(recv['request'] == 'msg'):
 				if(self.user == None):
 					self.error('Not logged in')
@@ -43,43 +49,67 @@ class ClientHandler(SocketServer.BaseRequestHandler):
 					self.names()
 			elif(recv['request'] == 'help'):
 				self.help()
-				pass
 			else:
-				if(self.user == None):
-					self.error('Unknown request')
-				pass
-			# TODO: Add handling of received payload from client
+				self.error('Unknown request')
+	
+	def history(self):
+		payload = {'timestamp': 0, 'sender': '[Server]', 'response': 'history', 'content': []}
+		for message in messages:
+			payload['content'].append(message)
+		self.send_payload(json.dumps(payload))
 	
 	def login(self, recv):
 		#TODO validate username
 		print(recv['content'],'logged in')
 		self.user = recv['content']
 		
+		#GET HISTORY
+		self.history()		
+		
+		msg = {'timestamp': 0, 'sender': '[Server]', 'response': 'info', 'content': self.user+' connected'}
+		payload = json.dumps(msg)	
+		for connected in connections:
+			if(connected.user != None):
+				connected.send_payload(payload)
+		messages.append(msg)
+		
 	def logout(self):
-		#todo
+		print(self.user,'logged out')
 		connections.remove(self)
-		pass
+		self.connection.close()
+		
+		msg = {'timestamp': 0, 'sender': '[Server]', 'response': 'info', 'content': self.user+' disconnected'}
+		payload = json.dumps(msg)	
+		for connected in connections:
+			if(connected.user != None):
+				connected.send_payload(payload)
+		messages.append(msg)
 		
 	def message(self, recv):
-		payload=json.dumps({'timestamp': 0, 'sender': self.user, 'response': 'msg', 'content': recv['content']})	
+		msg = {'timestamp': 0, 'sender': self.user, 'response': 'msg', 'content': recv['content']}
+		payload = json.dumps(msg)	
 		for connected in connections:
-			connected.send_payload(payload)
+			if(connected.user != None):
+				connected.send_payload(payload)
+		messages.append(msg)
 	
 	def names(self):
-		#todo
-		pass
+		names=""
+		for connected in connections:
+			if(connected.user != None):
+				names+=connected.user+', '
+		payload=json.dumps({'timestamp': 0, 'sender': '[Server]', 'response': 'info', 'content': 'Connected users: '+names})	
+		self.send_payload(payload)
 		
 	def help(self):
-		payload=json.dumps({'timestamp': 0, 'sender': '[Help]', 'response': 'info', 'content': 'This is a server'})
+		payload=json.dumps({'timestamp': 0, 'sender': '[Help]', 'response': 'info', 'content': 'Avaleable commands: login <uname>, logout, msg <message>, names, help'})
 		self.send_payload(payload)
 		
 	def send_payload(self, data):
-		# TODO: Handle sending of a payload
 		self.connection.send(bytes(data, 'UTF-8'))
-		pass
 		
 	def error(self, msg):
-		payload=json.dumps({'timestamp': 0, 'sender': '[Error}]', 'response': 'error', 'content': msg})
+		payload=json.dumps({'timestamp': 0, 'sender': '[Error]', 'response': 'error', 'content': msg})
 		self.send_payload(payload)
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
