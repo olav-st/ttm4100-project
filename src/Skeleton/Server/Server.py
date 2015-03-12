@@ -18,7 +18,7 @@ class ClientHandler(SocketServer.BaseRequestHandler):
 		self.port = self.client_address[1]
 		self.connection = self.request
 		self.user = None
-		connections.append(self)
+		server.connections.append(self)
 		
 		# Loop that listens for messages from the client
 		while True:
@@ -54,7 +54,7 @@ class ClientHandler(SocketServer.BaseRequestHandler):
 	
 	def history(self):
 		payload = {'timestamp': int(time.time()), 'sender': '[Server]', 'response': 'history', 'content': []}
-		for message in messages:
+		for message in server.messages:
 			payload['content'].append(message)
 		self.send_payload(json.dumps(payload))
 	
@@ -68,36 +68,36 @@ class ClientHandler(SocketServer.BaseRequestHandler):
 			
 			msg = {'timestamp': int(time.time()), 'sender': '[Server]', 'response': 'info', 'content': self.user+' connected'}
 			payload = json.dumps(msg)	
-			for connected in connections:
+			for connected in server.connections:
 				if(connected.user != None):
 					connected.send_payload(payload)
-			messages.append(msg)
+			server.messages.append(msg)
 		else:
 			self.error('Invalid username')
 		
 	def logout(self):
-		connections.remove(self)
+		server.connections.remove(self)
 		self.connection.close()
 		if(self.user != None):
 			print(self.user,'logged out')
 			msg = {'timestamp': int(time.time()), 'sender': '[Server]', 'response': 'info', 'content': self.user+' disconnected'}
 			payload = json.dumps(msg)	
-			for connected in connections:
+			for connected in server.connections:
 				if(connected.user != None):
 					connected.send_payload(payload)
-			messages.append(msg)
+			server.messages.append(msg)
 		
 	def message(self, recv):
 		msg = {'timestamp': int(time.time()), 'sender': self.user, 'response': 'msg', 'content': recv['content']}
 		payload = json.dumps(msg)	
-		for connected in connections:
+		for connected in server.connections:
 			if(connected.user != None):
 				connected.send_payload(payload)
-		messages.append(msg)
+		server.messages.append(msg)
 	
 	def names(self):
 		names=""
-		for connected in connections:
+		for connected in server.connections:
 			if(connected.user != None):
 				names+=connected.user+', '
 		payload=json.dumps({'timestamp': int(time.time()), 'sender': '[Server]', 'response': 'info', 'content': 'Connected users: '+names})	
@@ -122,6 +122,9 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 	No alterations is necessary
 	"""
 	allow_reuse_address = True
+	
+	connections=[]
+	messages=[]
 
 if __name__ == "__main__":
 	"""
@@ -131,10 +134,7 @@ if __name__ == "__main__":
 	No alterations is necessary
 	"""
 	HOST, PORT = '', 9998
-	print('Server running...')
-	
-	connections=[]
-	messages=[]
+	print('Server running...')	
 	
 	# Set up and initiate the TCP server
 	server = ThreadedTCPServer((HOST, PORT), ClientHandler)
