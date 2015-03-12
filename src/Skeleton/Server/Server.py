@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import socketserver as SocketServer
-import json
+import json, re, time
 
 class ClientHandler(SocketServer.BaseRequestHandler):
 	"""
@@ -18,7 +18,7 @@ class ClientHandler(SocketServer.BaseRequestHandler):
 		self.port = self.client_address[1]
 		self.connection = self.request
 		self.user = None
-		connections.append(self)
+		server.connections.append(self)
 		
 		# Loop that listens for messages from the client
 		while True:
@@ -53,63 +53,65 @@ class ClientHandler(SocketServer.BaseRequestHandler):
 				self.error('Unknown request')
 	
 	def history(self):
-		payload = {'timestamp': 0, 'sender': '[Server]', 'response': 'history', 'content': []}
-		for message in messages:
+		payload = {'timestamp': int(time.time()), 'sender': '[Server]', 'response': 'history', 'content': []}
+		for message in server.messages:
 			payload['content'].append(message)
 		self.send_payload(json.dumps(payload))
 	
 	def login(self, recv):
-		#TODO validate username
-		print(recv['content'],'logged in')
-		self.user = recv['content']
-		
-		#GET HISTORY
-		self.history()		
-		
-		msg = {'timestamp': 0, 'sender': '[Server]', 'response': 'info', 'content': self.user+' connected'}
-		payload = json.dumps(msg)	
-		for connected in connections:
-			if(connected.user != None):
-				connected.send_payload(payload)
-		messages.append(msg)
+		if re.match("^[A-Za-z0-9_-]+$", recv['content']):
+			print(recv['content'],'logged in')
+			self.user = recv['content']
+			
+			#GET HISTORY
+			self.history()		
+			
+			msg = {'timestamp': int(time.time()), 'sender': '[Server]', 'response': 'info', 'content': self.user+' connected'}
+			payload = json.dumps(msg)	
+			for connected in server.connections:
+				if(connected.user != None):
+					connected.send_payload(payload)
+			server.messages.append(msg)
+		else:
+			self.error('Invalid username')
 		
 	def logout(self):
-		print(self.user,'logged out')
-		connections.remove(self)
+		server.connections.remove(self)
 		self.connection.close()
-		
-		msg = {'timestamp': 0, 'sender': '[Server]', 'response': 'info', 'content': self.user+' disconnected'}
-		payload = json.dumps(msg)	
-		for connected in connections:
-			if(connected.user != None):
-				connected.send_payload(payload)
-		messages.append(msg)
+		if(self.user != None):
+			print(self.user,'logged out')
+			msg = {'timestamp': int(time.time()), 'sender': '[Server]', 'response': 'info', 'content': self.user+' disconnected'}
+			payload = json.dumps(msg)	
+			for connected in server.connections:
+				if(connected.user != None):
+					connected.send_payload(payload)
+			server.messages.append(msg)
 		
 	def message(self, recv):
-		msg = {'timestamp': 0, 'sender': self.user, 'response': 'msg', 'content': recv['content']}
+		msg = {'timestamp': int(time.time()), 'sender': self.user, 'response': 'msg', 'content': recv['content']}
 		payload = json.dumps(msg)	
-		for connected in connections:
+		for connected in server.connections:
 			if(connected.user != None):
 				connected.send_payload(payload)
-		messages.append(msg)
+		server.messages.append(msg)
 	
 	def names(self):
 		names=""
-		for connected in connections:
+		for connected in server.connections:
 			if(connected.user != None):
 				names+=connected.user+', '
-		payload=json.dumps({'timestamp': 0, 'sender': '[Server]', 'response': 'info', 'content': 'Connected users: '+names})	
+		payload=json.dumps({'timestamp': int(time.time()), 'sender': '[Server]', 'response': 'info', 'content': 'Connected users: '+names})	
 		self.send_payload(payload)
 		
 	def help(self):
-		payload=json.dumps({'timestamp': 0, 'sender': '[Help]', 'response': 'info', 'content': 'Avaleable commands: login <uname>, logout, msg <message>, names, help'})
+		payload=json.dumps({'timestamp': int(time.time()), 'sender': '[Help]', 'response': 'info', 'content': 'Avaleable commands: login <uname>, logout, msg <message>, names, help'})
 		self.send_payload(payload)
 		
 	def send_payload(self, data):
 		self.connection.send(bytes(data, 'UTF-8'))
 		
 	def error(self, msg):
-		payload=json.dumps({'timestamp': 0, 'sender': '[Error]', 'response': 'error', 'content': msg})
+		payload=json.dumps({'timestamp': int(time.time()), 'sender': '[Error]', 'response': 'error', 'content': msg})
 		self.send_payload(payload)
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
@@ -120,6 +122,9 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 	No alterations is necessary
 	"""
 	allow_reuse_address = True
+	
+	connections=[]
+	messages=[]
 
 if __name__ == "__main__":
 	"""
@@ -128,11 +133,8 @@ if __name__ == "__main__":
 
 	No alterations is necessary
 	"""
-	HOST, PORT = 'localhost', 9998
-	print('Server running...')
-	
-	connections=[]
-	messages=[]
+	HOST, PORT = '', 9998
+	print('Server running...')	
 	
 	# Set up and initiate the TCP server
 	server = ThreadedTCPServer((HOST, PORT), ClientHandler)

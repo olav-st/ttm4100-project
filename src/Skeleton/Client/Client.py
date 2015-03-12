@@ -2,7 +2,7 @@
 import socket
 from MessageReceiver import MessageReceiver
 import json
-import sys
+import sys, codecs
 
 class Client:
 	"""
@@ -29,6 +29,8 @@ class Client:
 		while True:
 			text = input().split(' ', 1)
 			if(len(text) > 0 and len(text) < 3):
+				if(len(text)==1):
+					text.append('')
 				if(text[0] == 'login'):
 					payload=json.dumps({'request': 'login', 'content': text[1]})
 					self.send_payload(payload)
@@ -44,15 +46,9 @@ class Client:
 					payload=json.dumps({'request': 'msg', 'content': text[1]})
 					self.send_payload(payload)
 				else:
-					print('Unknown command')
-					payload=json.dumps({'request': 'help'})
-					self.send_payload(payload)
+					print('Unknown command, type "help" for help')
 			else:
-				print('Unknown command')
-				payload=json.dumps({'request': 'help'})
-				self.send_payload(payload)
-
-
+				print('Unknown command, type "help" for help')
 
 
 	def disconnect(self):

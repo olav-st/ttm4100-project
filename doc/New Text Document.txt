@@ -1,0 +1,22 @@
+https://www.websequencediagrams.com/
+title Chat client/server
+
+Client->+User: new User(String username)
+User-->-Client: User user
+
+Client->+Server: login(user)
+Server->+Payload:new Payload("history", null, messages.serialize)
+Payload-->-Server:Payload history
+Server-->-Client: sendTo(user, payload)
+
+Server->+Payload:new Payload("info", null, user.getUsername()+" connected to server")
+Payload-->-Server:Payload message
+Server->Client: broadcast(message)
+
+Client->+Payload:new Payload("message",user, "y0 gaez!")
+Payload-->-Client:Payload message
+
+Client->+Server:send(Payload message)
+Server-->-Client: broadcast(message)
+
+Client->Server:logout()
