@@ -82,5 +82,6 @@ if __name__ == '__main__':
 
 	No alterations is necessary
 	"""
+	connect_ip=input("Enter server ip to connect: ")
 	print('Type "login <username>" to log in')
-	client = Client('localhost', 9998)
+	client = Client(connect_ip, 9998)
